@@ -1,0 +1,270 @@
+---
+title: "Extended Mapping Assignment"
+author: "Yuxin Zeng"
+date: "2020/11/10"
+output:
+  revealjs::revealjs_presentation:
+    self_contained: false
+    reveal_plugins: ["search", "zoom", "notes", "chalkboard", "menu"]
+    reveal_options:
+      chalkboard: 
+        theme: chalkboard
+        toggleNotesButton: true
+        menu:
+        numbers: true
+    highlight: pygments
+    template: temp.html
+    css: reveal.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  comment = '', fig.width = 12.5, fig.height = 4.5,  fig.align = "center",
+  echo = TRUE)
+pacman::p_load("dplyr","lubridate","maps","ggplot2","tidyverse","cowplot")
+
+```
+
+```{r echo=FALSE}
+#Read the data
+dt <- read.csv("PublicAssistanceFundedProjectsDetails.csv")
+
+#Filter the information from 2009 to 2018 and remove meaningless columns 
+dt %>% 
+  filter(2009<=year(declarationDate)&year(declarationDate)<=2018) %>%
+  select(c(1,2,3,5,6,9,11,13,16)) -> dt1
+  
+#Focus on hurricane and tornado
+type <- unique(dt1$incidentType)
+hurricane <- subset(dt1,incidentType=="Hurricane")
+tornado <- subset(dt1,incidentType=="Tornado")
+```
+
+# Introduction
+<div style="font-size:16pt">
+Various natural disasters bring different types and degrees of economic losses to people every year. Using FEMA data, we took Hurricane and Tornado from 2009 to 2018 as the research objects, conducted a simple EDA analysis, and drew some loss maps.
+
+Our data source is website: https://www.fema.gov/openfema-data-page/public-assistance-funded-projects-details-v1.
+</div>
+# Hurricane v.s. Tornado
+<p>
+<img data-src = "images.png">
+</p>
+<div style="font-size:16pt">
+Tornadoes and hurricanes appear to be similar in their general structure. Both are characterized by extremely strong horizontal winds swirling around the center, strong upward motion dominating the circulation with some downward motion in the center.
+</div>
+# EDA: 2009-2018 Annual Losses
+<div style="font-size:16pt">
+```{r echo=FALSE}
+#2009-2018 Annual Losses Due to Hurricane
+aggregate(projectAmount~year(declarationDate),data=hurricane,FUN=sum) %>%
+  rename("year"="year(declarationDate)","cost"="projectAmount") ->
+  a1
+
+#Figure
+ggplot(data=a1,aes(x=year,y=cost)) +
+  geom_bar(stat="identity",fill="steelblue",color="black") +
+  labs(x="Year",y="Estimated Total Cost",title="Annual Losses Due to Hurricanes") +
+  theme(axis.text = element_text(size = 10),
+        axis.title = element_text(size = 13, face = "bold"))   -> 
+  h_bar 
+
+#2009-2018 Annual Losses Due to Tornado
+aggregate(projectAmount~year(declarationDate),data=tornado,FUN=sum) %>%
+  rename("year"="year(declarationDate)","cost"="projectAmount") ->
+  a3
+
+#Figure
+ggplot(data=a3,aes(x=year,y=cost)) +
+  geom_bar(stat="identity",fill="steelblue",color="black") +
+  labs(title="Annual Losses Due to Tornado") +
+  xlab("Year") +
+  ylab("Estimated Total Cost") +
+  theme(axis.text = element_text(size = 10),
+        axis.title = element_text(size = 13, face = "bold"))   -> 
+  t_bar
+
+cowplot::plot_grid(h_bar,t_bar,labels="AUTO")
+```
+
+
+-Hurricane: 
+There is no estimated cost in 2014 and 2015, but the estimated cost in 2011 was drastically large, over 20 billion.
+
+-Tornado:
+The estimated cost in 2011 was the largest (100 million), and there is no estimated cost in 2012.
+</div>
+# EDA: Different Damage Categories Due to Hurricane
+<div style="font-size:16pt">
+```{r echo=FALSE}
+#Frequency of each damage type 
+t1=table(hurricane$damageCategory)
+#Cost of each damage type 
+a2=aggregate(projectAmount~damageCategory,data=hurricane,FUN=sum)
+#Pie chart data
+cbind(a2,t1) %>%
+  rename("damage"="damageCategory","cost"="projectAmount") %>%
+  select(-3) ->
+  h_piedata
+
+#Proportion of Different Damage Categories
+ggplot(data=h_piedata, mapping=aes(x="",y=Freq,fill=damage)) +
+  geom_bar(stat="identity",width=1) +
+  coord_polar(theta="y") +
+  labs(title="Different Damages") +
+  theme(axis.ticks=element_blank()) -> h_pie1
+
+#Proportion of Losses in Different Damage Categories
+ggplot(data=h_piedata, mapping=aes(x="",y=cost,fill=damage)) +
+  geom_bar(stat="identity",width=1) +
+  coord_polar(theta="y") +
+  labs(title="Damage Costs") +
+  theme(axis.ticks=element_blank()) -> h_pie2
+
+cowplot::plot_grid(h_pie1,h_pie2,labels ="AUTO")
+```
+
+
+Protective Measures accounts for the largest proportion among all the damage categories caused by hurricanes, but its cost is not the largest. The cost of Public Utilities is the largest.
+
+</div>
+
+# EDA: Different Damage Categories Due to Tornado
+<div style="font-size:16pt">
+```{r echo=FALSE}
+#Frequency of each damage type 
+t2=table(tornado$damageCategory)
+#Cost of each damage type 
+a4=aggregate(projectAmount~damageCategory,data=tornado,FUN=sum)
+#Pie chart data
+cbind(a4,t2) %>%
+  rename("damage"="damageCategory","cost"="projectAmount") %>%
+  select(-3) ->
+  t_piedata
+
+#Proportion of Different Damage Categories
+ggplot(data=t_piedata, mapping=aes(x="",y=Freq,fill=damage)) +
+  geom_bar(stat="identity",width=1) +
+  coord_polar(theta="y") +
+  labs(title="Different Damages") +
+  theme(axis.ticks=element_blank()) -> t_pie1
+
+#Proportion of Losses in Different Damage Categories
+ggplot(data=t_piedata, mapping=aes(x="",y=cost,fill=damage)) +
+  geom_bar(stat="identity",width=1) +
+  coord_polar(theta="y") +
+  labs(title="Damage Costs") +
+  theme(axis.ticks=element_blank()) -> t_pie2
+
+cowplot::plot_grid(t_pie1,t_pie2,labels="AUTO")
+```
+
+
+Debris Removal is not the most frequent appliaction among all the damage categories caused by tornadoes, but its cost is the largest.
+</div>
+# Hurricane Maps
+<div style="font-size:16pt">
+```{r echo=FALSE}
+#Total cost of each county
+a5=aggregate(projectAmount~county,data=hurricane,FUN=sum)
+#Unique applicant ID of each county
+a6=aggregate(applicantId~county,data=hurricane,FUN=unique)
+#Number of unique applicants of each county
+a6$number=lengths(a6$applicantId)
+#Join the tables (a5 & a6)
+h_data=merge(a5,a6)
+#Average cost per applicant of each county
+h_data$average=h_data$projectAmount/h_data$number
+
+#Organize the data
+for (i in 1:nrow(h_data)){
+  tolower(h_data$county[i]) -> h_data$subregion[i]
+}
+
+h_data %>% 
+  select(-c(1,3)) %>% 
+  rename("total"="projectAmount") -> 
+  h_data
+
+#Add long&lat information
+map_data("county") -> geo 
+geo %>% right_join(h_data,by=c('subregion'='subregion')) ->
+  h_mapdata
+
+#Total Cost Due to Hurricane from 2009 to 2018 
+ggplot() + 
+  geom_polygon(data=geo,aes(x=long,y=lat,group=group),colour="grey",fill="white") + 
+  geom_polygon(data=h_mapdata,aes(x=long,y=lat,group=group,fill=total),colour="transparent") +
+  labs(title="Total Cost of Hurricane",x="Longitude",y="Latitude",fill="Total") -> 
+  h_map1
+
+#Average Cost Due to Hurricane from 2009 to 2018
+ggplot() + 
+  geom_polygon(data=geo,aes(x=long,y=lat,group=group),colour="grey",fill="white") + 
+  geom_polygon(data=h_mapdata,aes(x=long,y=lat,group=group,fill=average),colour="transparent") +
+  labs(title="Average Cost of Hurricane",x="Longitude",y="Latitude",fill="Average") -> 
+  h_map2
+
+cowplot::plot_grid(h_map1,h_map2,labels="AUTO")
+```
+</div>
+
+# Tornado Maps
+<div>
+```{r echo=FALSE}
+#Total cost of each county
+a7=aggregate(projectAmount~county,data=tornado,FUN=sum)
+#Unique applicant ID of each county
+a8=aggregate(applicantId~county,data=tornado,FUN=unique)
+#Number of unique applicants of each county
+a8$number=lengths(a8$applicantId)
+#Join the tables (a7 & a8)
+t_data=merge(a7,a8)
+#Average cost per applicant of each county
+t_data$average=t_data$projectAmount/t_data$number
+
+#Organize the data
+for (i in 1:nrow(t_data)){
+  tolower(t_data$county[i]) -> t_data$subregion[i]
+}
+
+t_data %>% 
+  select(-c(1,3)) %>% 
+  rename("total"="projectAmount") -> 
+  t_data
+
+#Add long&lat information
+map_data("county") -> geo 
+geo %>% right_join(t_data,by=c('subregion'='subregion')) ->
+  t_mapdata
+
+#Total Cost Due to Tornado from 2009 to 2018 
+ggplot() + 
+  geom_polygon(data=geo,aes(x=long,y=lat,group=group),colour="grey",fill="white") + 
+  geom_polygon(data=t_mapdata,aes(x=long,y=lat,group=group,fill=total),colour="transparent") +
+  labs(title="Total Cost of Tornado",x="Longitude",y="Latitude",fill="Total") -> 
+  t_map1
+
+#Average Cost Due to Tornado from 2009 to 2018
+ggplot() + 
+  geom_polygon(data=geo,aes(x=long,y=lat,group=group),colour="grey",fill="white") + 
+  geom_polygon(data=t_mapdata,aes(x=long,y=lat,group=group,fill=average),colour="transparent") +
+  labs(title="Average Cost of Tornado",x="Longitude",y="Latitude",fill="Average") -> 
+  t_map2
+
+cowplot::plot_grid(t_map1,t_map2,labels="AUTO")
+```
+</div>
+
+# Difference?
+<div style="font-size:16pt">
+```{r echo=FALSE}
+cowplot::plot_grid(h_map1,t_map1,labels="AUTO")
+```
+
+
+The estimated cost of hurricanes is relatively large near the east coastline, while the estimated cost of tornadoes does not show this trend. This is because a hurricane almost always forms over sea while a tornado usually forms over land. 
+
+Another obvious difference between tornadoes and hurricanes is that they have significantly different scales.
+
+</div>
